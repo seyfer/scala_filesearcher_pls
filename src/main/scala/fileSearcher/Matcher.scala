@@ -4,6 +4,14 @@ import java.io.File
 
 import scala.annotation.tailrec
 
+/**
+  * main entry point
+  *
+  * @param filter
+  * @param rootLocation
+  * @param checkSubFolders
+  * @param contentFilter
+  */
 class Matcher(
                filter: String,
                val rootLocation: String = new File(".").getCanonicalPath(),
@@ -12,6 +20,10 @@ class Matcher(
              ) {
   val rootIOObject = FileConverter.convertToIOOject(new File(rootLocation))
 
+  /**
+    *
+    * @return list of filenames
+    */
   def execute() = {
     @tailrec
     def recursiveMatch(files: List[IOObject], currentList: List[FileObject]): List[FileObject] =
@@ -37,13 +49,14 @@ class Matcher(
 
     val contentFilteredFiles = contentFilter match {
       case Some(dataFilter) =>
-        matchedFiles.map(iOObject =>
-          (iOObject, Some(FilterChecker(dataFilter)
-            .findMatchedContentCount(iOObject.file))))
-          .filter(matchTuple => matchTuple._2.get > 0)
+        matchedFiles.map(
+          iOObject =>
+            (iOObject, Some(FilterChecker(dataFilter).findMatchedContentCount(iOObject.file)))
+        )
+          .filter(matchTuple => matchTuple._2.value > 0)
       case None => matchedFiles map (iOObject => (iOObject, None))
     }
 
-    contentFilteredFiles map { case (iOObject, count) => (iOObject.name, count) }
+    contentFilteredFiles map { case (iOObject, count) => (iOObject.fullName, count) }
   }
 }
