@@ -3,7 +3,7 @@ package fileSearcher
 object Runner extends App {
 
   def convertToBool(boolString: String) =
-    List("true", "t") exists (trueVal => trueVal == boolString.toLowerCase())
+    List("true", "t").contains(boolString.toLowerCase())
 
   val matcher = args match {
     case Array(filter) => new Matcher(filter)
@@ -14,15 +14,19 @@ object Runner extends App {
       new Matcher(filter, rootPath, convertToBool(checkSubfolders), Some(contentFilter))
   }
 
-  val results = matcher.execute();
+  val results = matcher.execute()
 
-  println(s"Found ${results.length} matches:")
-  args match {
-    case Array(_, _, _, _, outputFilePath, _*) => {
-      SearchResultWriter.writeToFile(outputFilePath, results)
-      println(s"Results writtent to $outputFilePath")
+  if (results == null) {
+    println(s"Not Found")
+  } else {
+    println(s"Found ${results.length} matches:")
+    args match {
+      case Array(_, _, _, _, outputFilePath, _*) => {
+        SearchResultWriter.writeToFile(outputFilePath, results)
+        println(s"Results writtent to $outputFilePath")
+      }
+      case _ => SearchResultWriter.writeToConsole(results)
     }
-    case _ => SearchResultWriter.writeToConsole(results)
   }
 
 }
