@@ -12,8 +12,9 @@ object SearchResultWriter {
     val printWriter = new PrintWriter(fileWriter)
 
     try
-        for ((fileName, countOption) <- searchResults)
+        for ((fileName, countOption) <- searchResults) {
           printWriter.println(getString(fileName, countOption))
+        }
     finally {
       printWriter.close()
       fileWriter.close()
@@ -21,11 +22,12 @@ object SearchResultWriter {
   }
 
   def writeToConsole(searchResults: List[(String, Option[Int])]): Unit = {
-    for ((fileName, countOption) <- searchResults)
+    for ((fileName, countOption) <- searchResults) {
       println(getString(fileName, countOption))
+    }
   }
 
-  private def getString(fileName: String, countOption: Option[Int]) = {
+  private def getString(fileName: String, countOption: Option[Int]): String = {
     countOption match {
       case Some(count) => s"$fileName -> $count"
       case None => s"$fileName"

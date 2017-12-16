@@ -3,6 +3,7 @@ package fileSearcher
 import java.io.File
 
 import scala.annotation.tailrec
+import scala.collection.parallel.ParSeq
 
 /**
   * main entry point
@@ -18,6 +19,7 @@ class Matcher(
                checkSubFolders: Boolean = false,
                contentFilter: Option[String] = None
              ) {
+
   val rootIOObject = FileConverter.convertToIOOject(new File(rootLocation))
 
   /**
@@ -26,6 +28,13 @@ class Matcher(
     */
   def execute(): List[(String, Option[Int])] = {
 
+    /**
+      *
+      * @param page
+      * @param pageSize
+      * @param totalItems
+      * @return
+      */
     def getPagingInfo(page: Int, pageSize: Int, totalItems: Int): (Int, Int, Int) = {
       val pages = 1 to totalItems by pageSize
 
@@ -39,10 +48,10 @@ class Matcher(
       return (from, to, totalPages)
     }
 
-    def getListForRange(list: List[(Int, IOObject, Double)],
-                        start: Int, end: Int) =
-      list.dropWhile(_._1 < start)
+    def getListForRange(list: List[(Int, IOObject, Double)], start: Int, end: Int): List[(Int, IOObject, Double)] = {
+      return list.dropWhile(_._1 < start)
         .takeWhile(ioGlob => ioGlob._1 >= start && ioGlob._1 <= end)
+    }
 
     def contentMatch(dataFilter: String, matchedFiles: List[IOObject]): List[(IOObject, Some[Int])] = {
       var id = 0
@@ -63,34 +72,47 @@ class Matcher(
       val results = for (currPage <- 1 to totalPages)
         yield {
           val currPageData = getPagingInfo(currPage, 10000, matchedFiles.length)
-          val currRunList = getListForRange(matchedFilesWithIdAndFileSize,
-            currPageData._1, currPageData._2)
+          val currRunList = getListForRange(
+            matchedFilesWithIdAndFileSize,
+            currPageData._1,
+            currPageData._2
+          )
 
           //parallel
           val listToFilter = currRunList.par
           val currentRunStartTime = System.nanoTime()
 
-          val result = listToFilter
-            .map(iOObject => (iOObject._2,
-              Some(FilterChecker(dataFilter).findMatchedContentCount(iOObject._2.file))))
-            .filter(matchTuple => matchTuple._2.get > 0)
+          val result = getContentFilterResult(listToFilter, dataFilter)
 
           val currentRunEndTime = System.nanoTime
+          //reduce
           val currentRunMb = listToFilter.foldLeft(0D)((accum, ioGlob) =>
             accum.toDouble + ioGlob._3)
           totalMb = totalMb + currentRunMb
+
           println(s"page: $currPage; "
             + s"Total Running Time: ${(currentRunEndTime - beginTime) * 1e-9}; "
             + s"Total MB: $totalMb; "
             + s"Current Run Time: ${(currentRunEndTime - currentRunStartTime) * 1e-9}; "
             + s"Current Run MB: $currentRunMb")
+
           result
         }
+
       val finalTime = System.nanoTime()
       println(s"Total Running Time: ${(finalTime - beginTime) * 1e-9}; "
         + s"Total MB: $totalMb")
 
       return results.toList.flatten
+    }
+
+    def getContentFilterResult(listToFilter: ParSeq[(Int, IOObject, Double)], dataFilter: String): ParSeq[(IOObject, Some[Int])] = {
+      val result = listToFilter
+        .map(iOObject => (iOObject._2,
+          Some(FilterChecker(dataFilter).findMatchedContentCount(iOObject._2.file))))
+        .filter(matchTuple => matchTuple._2.get > 0)
+
+      return result
     }
 
     @tailrec
@@ -99,9 +121,12 @@ class Matcher(
         case List() => currentList
         case iOObject :: rest =>
           iOObject match {
-            case file: FileObject if FilterChecker(filter) matches file.name =>
+            case file:
+              FileObject
+              if FilterChecker(filter).matches(file.name) =>
               recursiveMatch(rest, file :: currentList)
-            case directory: DirectoryObject =>
+            case directory:
+              DirectoryObject =>
               recursiveMatch(rest ::: directory.children(), currentList)
             case _ => recursiveMatch(rest, currentList)
           }
@@ -111,7 +136,7 @@ class Matcher(
       case file: FileObject if FilterChecker(filter) matches file.name => List(file)
       case directory: DirectoryObject =>
         if (checkSubFolders) recursiveMatch(directory.children(), List())
-        else FilterChecker(filter) findMatchedFiles directory.children()
+        else FilterChecker(filter).findMatchedFiles(directory.children())
       case _ => List()
     }
 
@@ -122,7 +147,7 @@ class Matcher(
     }
 
     if (contentFilteredFiles == null) {
-      return null;
+      return null
     }
 
     return contentFilteredFiles.map {

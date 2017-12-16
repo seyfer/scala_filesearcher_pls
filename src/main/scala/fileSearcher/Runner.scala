@@ -2,8 +2,9 @@ package fileSearcher
 
 object Runner extends App {
 
-  def convertToBool(boolString: String) =
-    List("true", "t").contains(boolString.toLowerCase())
+  def convertToBool(boolString: String): Boolean = {
+    return List("true", "t").contains(boolString.toLowerCase())
+  }
 
   val matcher = args match {
     case Array(filter) => new Matcher(filter)

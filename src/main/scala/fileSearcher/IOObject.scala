@@ -13,20 +13,23 @@ trait IOObject {
     case NonFatal(_) => name
   }
 
-  def fileSize: Double = try
-    file.length() * 9.5367e-7
-  catch {
-    case NonFatal(_) => 0
+  def fileSize: Double = {
+    try
+      file.length() * 9.5367e-7
+    catch {
+      case NonFatal(_) => 0
+    }
   }
 }
 
 case class FileObject(file: File) extends IOObject
 
 case class DirectoryObject(file: File) extends IOObject {
-  def children() =
+  def children(): List[IOObject] = {
     try
-      file.listFiles().toList.map(file => FileConverter convertToIOOject file)
+      file.listFiles().toList.map(file => FileConverter.convertToIOOject(file))
     catch {
       case _: NullPointerException => List()
     }
+  }
 }
